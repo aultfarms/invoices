@@ -4,6 +4,7 @@ import { type TrelloRESTFunction, type TrelloRequestFunction,
   assertTrelloBoards, assertTrelloBoard, assertTrelloOrgs, assertTrelloOrg,
   assertTrelloLists, assertTrelloList, assertTrelloCards, assertTrelloCard } from '../types.js';
 import { getUniversalClient } from '../client.js';
+import { idLabelsWriteSucceeded } from '../response.js';
 const info = debug('af/trello#browser:info');
 
 export * from '../index.js'; // export all the universal things
@@ -181,6 +182,7 @@ const request: TrelloRequestFunction = async (method, path, params) => {
     void e;
     throw new Error(`ERROR: request did not return valid JSON for ${method.toUpperCase()} ${path}`);
   }
+  if (idLabelsWriteSucceeded(path, body)) return [];
   try { assertTrelloOrgs(body);   return  body;  } catch(e: any) {};
   try { assertTrelloOrg(body);    return [body]; } catch(e: any) {};
   try { assertTrelloBoards(body); return  body;  } catch(e: any) {};
