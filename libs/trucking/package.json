@@ -23,6 +23,7 @@
     "dev": "yarn run build:tsc && concurrently \"yarn run dev:tsc\" \"yarn run dev:rollup\"",
     "test:testcafe": "testcafe --config-file='.testcafe.js'",
     "test": "live-server --port=8080 --host=localhost --wait=1000 --watch=dist/index.mjs,dist/test/index.mjs --open=test/index.html",
+    "test:records": "node --test test/feed-record.test.mjs",
     "clean": "rm -rf dist"
   },
   "author": "Aaron Ault <aultac@gmail.com>",

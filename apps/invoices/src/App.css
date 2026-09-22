@@ -1,5 +1,10 @@
-.App {
+.main {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  margin: 0 auto;
+  max-width: 1100px;
+  padding: 8px 12px 32px;
+  width: 100%;
 }
-

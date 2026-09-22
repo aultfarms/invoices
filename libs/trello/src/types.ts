@@ -16,9 +16,12 @@ export type TrelloRequestParams = {
   desc?: string, // for posting new cards only
   closed?: boolean, // for archiving cards
   pos?: "top" | "bottom" | number, // to position new cards
+  value?: string, // for POST /cards/{id}/idLabels
 };
 
 export type TrelloLabel = {
+  id?: string,
+  name?: string,
   // there are other things in labels, but the color is all I care about
   color: string,
 };
@@ -31,7 +34,7 @@ export type TrelloCard = {
   dateLastActivity: string,
   desc: string,
   idBoard: string,
-  labels: string[],
+  labels: TrelloLabel[],
   pos: number,
 };
 export function assertTrelloCard(o: any): asserts o is TrelloCard {
@@ -45,9 +48,9 @@ export function assertTrelloCard(o: any): asserts o is TrelloCard {
   if (typeof o.dateLastActivity !== 'string') throw new Error('Card must have dateLastActivity');
   if (typeof o.desc !== 'string') throw new Error('Card must have desc');
   if (!Array.isArray(o.labels)) throw new Error('Card must have array of labels, even if empty');
-  for(const [index, l] of (o.labels as string[]).entries()) {
-    if (typeof l !== 'object') throw new Error(`Label ${index} is not an object, it is ${JSON.stringify(l)}`);
-    if (typeof l['color'] !== 'string') throw new Error(`Label ${index} does not have a color key that is a string`);
+  for(const [index, l] of (o.labels as unknown[]).entries()) {
+    if (!l || typeof l !== 'object') throw new Error(`Label ${index} is not an object, it is ${JSON.stringify(l)}`);
+    if (typeof (l as { color?: unknown }).color !== 'string') throw new Error(`Label ${index} does not have a color key that is a string`);
   }
 }
 export function assertTrelloCards(o: any): asserts o is TrelloCard[] {

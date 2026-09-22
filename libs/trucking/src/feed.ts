@@ -111,10 +111,10 @@ export function feedDeliveredCardToRecord(c: TrelloCard): FeedRecord | ErrorReco
     // Optional note
     const note = (rest && rest.trim()) || '';
 
-    // Set true/false properties based on labels:
-    const     invoiced = !!c.labels.find(l => l === 'orange');
-    const      paidFor = !!c.labels.find(l => l === 'green');
-    const truckingPaid = !!c.labels.find(l => l === 'blue');
+    // Labels arrive as { color, name } objects. A bare color string is accepted too.
+    const     invoiced = hasLabelColor(c.labels, 'orange');
+    const      paidFor = hasLabelColor(c.labels, 'green');
+    const truckingPaid = hasLabelColor(c.labels, 'blue');
 
     return {
       date,
@@ -139,7 +139,33 @@ export function feedDeliveredCardToRecord(c: TrelloCard): FeedRecord | ErrorReco
   }
 }
 
-// Note: currently does not do the labels yet.  Look to lib/overmind/src/feed to see how that was done, or just the trello API.
+export function feedLabelColor(label: unknown): string {
+  if (typeof label === 'string') return label;
+  if (label && typeof label === 'object' && 'color' in label) {
+    const color = (label as { color?: unknown }).color;
+    if (typeof color === 'string') return color;
+  }
+  return '';
+}
+
+function hasLabelColor(labels: readonly unknown[] | undefined, color: string): boolean {
+  if (!labels) return false;
+  return labels.some(label => feedLabelColor(label) === color);
+}
+
+export function isHomeDestination(dest: string | undefined | null): boolean {
+  return (dest ?? '').trim().toUpperCase() === 'HOME';
+}
+
+export function isCustomerLoad(record: { dest?: string | null }): boolean {
+  return !isHomeDestination(record.dest);
+}
+
+/** Customer delivery (destination is not Home) that has no orange "Invoiced customer" label. */
+export function isNotInvoicedCustomerLoad(record: { dest?: string | null, invoiced?: boolean }): boolean {
+  return isCustomerLoad(record) && record.invoiced !== true;
+}
+
 export async function saveFeedDelivered({ client, record }: { client: client.Client, record: FeedRecord }) {
   const r = record;
   const fb = await feedBoard({ client });
@@ -156,4 +182,20 @@ export async function saveFeedDelivered({ client, record }: { client: client.Cli
 export async function saveAvailableLoadNumber({ client, loadnumstr }: { client: client.Client, loadnumstr: string }) {
   const fb = await feedBoard({ client });
   await client.saveNewCardAtBottomOfList({ name: loadnumstr, idList: fb.available.idList });
+}
+
+// Writes the orange "Invoiced customer" label onto one delivered card, then refreshes the cached board.
+// Call this only from the invoices screen's Mark Invoiced button.
+export async function markFeedDeliveredInvoiced({ client, cardId }: { client: client.Client, cardId: string }) {
+  if (!cardId) throw new Error('Cannot mark a feed load invoiced without a card id');
+  const boardid = await client.findBoardidByName(feedBoardName);
+  const body = await client.get(`/boards/${boardid}/labels`, { fields: 'id,name,color' });
+  const labels = Array.isArray(body) ? body : [body];
+  const orange = labels.find(label => {
+    if (feedLabelColor(label) !== 'orange' || !label || typeof label !== 'object') return false;
+    return typeof (label as { id?: unknown }).id === 'string';
+  }) as { id: string } | undefined;
+  if (!orange) throw new Error('Could not find the orange Invoiced customer label on the Feed board');
+  await client.post(`/cards/${cardId}/idLabels`, { value: orange.id });
+  await feedBoard({ client, force: true });
 }
